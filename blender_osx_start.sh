@@ -1,1 +1,1 @@
-/Applications/Blender.app/Contents/MacOS/Blender -P /Users/lorenzoargentieri/Documents/workspace/BlenderLib/startup/start.py
+/Applications/Blender.app/Contents/MacOS/Blender -P /Users/lorenzoargentieri/Documents/workspace/BlenderLib/start.py

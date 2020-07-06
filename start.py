@@ -9,7 +9,7 @@ print('----------- LOAD LIB -----------')
 runString = """import os
 import bpy
  
-filename = os.path.join('/Users/lorenzoargentieri/Documents/workspace/BlenderLib/', 'utils.py')
+filename = os.path.join('/Users/lorenzoargentieri/Documents/workspace/BlenderLib/add-ons/', 'utils.py')
 exec(compile(open(filename).read(), filename, 'exec'))
 """
 
