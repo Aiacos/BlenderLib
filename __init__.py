@@ -32,7 +32,6 @@ for currentModuleFullName in modulesFullNames.values():
     if currentModuleFullName in sys.modules:
         importlib.reload(sys.modules[currentModuleFullName])
     else:
-        print('CURRENT MOD: ', currentModuleFullName)
         globals()[currentModuleFullName] = importlib.import_module(currentModuleFullName)
         setattr(globals()[currentModuleFullName], 'modulesNames', modulesFullNames)
 
