@@ -53,6 +53,6 @@ def unregister():
 if __name__ == "__main__":
     register()
 
-    print('LIIIIIIB')
-    print('Test Selection Light')
-    select('Light')
+    #print('LIIIIIIB')
+    #print('Test Selection Light')
+    #select('Light')
