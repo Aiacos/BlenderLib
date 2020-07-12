@@ -13,8 +13,10 @@ class ShadersConverter(object):
         objects = model_collection.objects
 
         if removeDuplicateShaders:
+            print('------- REMOVE DUPLICATE -------')
             for obj in objects:
                 self.removeDuplicateShader(obj)
+            print('-------')
 
         for obj in objects:
             self.iterateMaterialSlot(obj)
@@ -68,10 +70,11 @@ class ShadersConverter(object):
         for idx, slot in zip(range(0, len(material_slots)), material_slots):
             if slot.material.name != 'Dots Stroke':
                 C.object.active_material_index = idx
-                ShaderPBRConverter(slot.material, self.folderManager.get_images(), self.folderManager.texture_folder()+'/')
+                ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
 
 class ShaderPBRConverter(object):
     def __init__(self, material, img_list, sourceimages):
+        self.material = material
         self.shader_node = material.node_tree.nodes['Principled BSDF']
         self.links = material.node_tree.links
 
@@ -79,29 +82,35 @@ class ShaderPBRConverter(object):
         self.shader_texture_list = self.texture_filter(img_list)
         self.node_wrangle_texture_dict = self.node_wrangler_texture_dict(self.shader_texture_list)
 
-        nodes = self.shader_node.node_tree.nodes
-        nodes.active = self.shader_node
-
-        self.build_node_wrangler_principled_bsdf(sourceimages, str(self.texture_base_name), self.shader_texture_list)
+        print('MATERIAL: ', self.material)
+        if self.shader_texture_list:
+            self.build_node_wrangler_principled_bsdf(sourceimages, str(self.texture_base_name), self.node_wrangle_texture_dict)
+        else:
+            print('Empty Material', self.texture_base_name)
 
     def get_texture_base_name(self):
         """
         Get texture base name: concrete_BaseColor.png > concrete
         :return: (str) texture base name
         """
+        baseColor_texture_fullpath = ''
         for l in self.links:
             if isinstance(l.from_node, bpy.types.ShaderNodeTexImage):
                 baseColor_texture_fullpath = tx.getTextureFromNode(l.from_node.image.filepath)
 
-        return tx.getTextureBaseName(baseColor_texture_fullpath)
+                return tx.getTextureBaseName(baseColor_texture_fullpath.stem)
+        return baseColor_texture_fullpath
 
     def texture_filter(self, img_list):
         shader_texture_list = []
         for img in img_list:
-            if self.get_texture_base_name() in tx.getTextureFromNode(img).stem:
+            if self.texture_base_name in tx.getTextureFromNode(img).stem:
                 shader_texture_list.append(img)
 
-        return shader_texture_list
+        if shader_texture_list:
+            return shader_texture_list
+
+        return []
 
     def node_wrangler_texture_dict(self, shader_texture_list):
         imgDictList = []
@@ -113,41 +122,75 @@ class ShaderPBRConverter(object):
 
 
     def build_node_wrangler_principled_bsdf(self, folder, baseColor_texture, shader_textures):
-            old_type = C.area.ui_type
-            C.area.ui_type = 'ShaderNodeTree'
+        old_type = C.area.ui_type
+        C.area.ui_type = 'ShaderNodeTree'
 
-            O.node.nw_add_textures_for_principled(filepath=baseColor_texture, directory=folder+'/', files=shader_textures, relative_path=True)
+        #bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-            C.area.ui_type = old_type
+        #################
+        #O.node.select_all(action='TOGGLE')
+        nodes = self.material.node_tree.nodes
+        self.shader_node.select = True
+        nodes.active = self.shader_node
+
+        #######################
+
+        area = C.area
+        area.type = 'NODE_EDITOR'
+        for sp in area.spaces:
+            print(sp, sp.type, "has tree_treetype", hasattr(sp, "tree_type"))
+
+            if hasattr(sp, "tree_type"):
+                space = area.spaces.active
+                space.tree_type = 'ShaderNodeTree'
+
+                for a in C.screen.areas:
+                    if a.type == 'NODE_EDITOR':
+                        x = a.x
+                        y = a.y
+                        width = a.width
+                        height = a.height
+
+                C.window.cursor_warp(x + width / 2, y + height / 2)
+
+        ########################
+                print('Context: ', C.space_data.node_tree)
+                O.node.nw_add_textures_for_principled(filepath=baseColor_texture, directory=folder+'/', files=shader_textures, relative_path=True)
+
+        C.area.ui_type = old_type
+
+        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
 def main(context):
     ShadersConverter()
 
+        #C.area.ui_type = old_type
 
-class SimpleOperator(bpy.types.Operator):
+    def build_principled_bsdf(self, folder, shader_textures):
+        pass
+
+class ShadersConverterOperator(bpy.types.Operator):
     """Tooltip"""
-    bl_idname = "object.simple_operator"
-    bl_label = "Simple Object Operator"
+    bl_idname = "materials.shaders_converter"
+    bl_label = "Shaders PBR Converter"
+    bl_context = "node"
 
     @classmethod
     def poll(cls, context):
         return context.active_object is not None
 
     def execute(self, context):
-        main(context)
+        ShadersConverter()
         return {'FINISHED'}
 
 
 def register():
-    bpy.utils.register_class(SimpleOperator)
+    bpy.utils.register_class(ShadersConverterOperator)
 
 
 def unregister():
-    bpy.utils.unregister_class(SimpleOperator)
+    bpy.utils.unregister_class(ShadersConverterOperator)
 
 
 if __name__ == "__main__":
     register()
-
-    # test call
-    bpy.ops.object.simple_operator()

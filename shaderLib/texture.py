@@ -2,7 +2,7 @@ import os, glob, pathlib
 
 
 class ProjectFolder(object):
-    def __init__(self, project='Inn', worksapce='Qsync/Project', sourceimages='sourceimages', scenes='scenese'):
+    def __init__(self, project='Inn', worksapce='Qsync/Project', sourceimages='sourceimages', scenes='scenes'):
         self.home = pathlib.Path.home()
         self.texture_folder = self.home / worksapce / project / sourceimages
         self.scenes_folder = self.home / worksapce / project / scenes
@@ -54,6 +54,7 @@ def getTextureBaseName(texture_stem):
     """
     texture = str(texture_stem)
     if texture.count('BaseColor'):
+        texture = texture.split(' - ')[0]
         return '_'.join(texture.split('_')[:-1])
 
     return texture
