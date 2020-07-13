@@ -54,7 +54,7 @@ def getTextureBaseName(texture_stem):
     """
     texture = str(texture_stem)
     if texture.count('BaseColor'):
-        texture = texture.split(' - ')[0]
+        #texture = texture.split(' - ')[0]
         return '_'.join(texture.split('_')[:-1])
 
     return texture

@@ -16,7 +16,10 @@ class ShadersConverter(object):
             print('------- REMOVE DUPLICATE -------')
             for obj in objects:
                 self.removeDuplicateShader(obj)
+            bpy.ops.outliner.orphans_purge()
+            bpy.ops.outliner.orphans_purge()
             print('-------')
+
 
         for obj in objects:
             self.iterateMaterialSlot(obj)
@@ -80,13 +83,15 @@ class ShaderPBRConverter(object):
 
         self.texture_base_name = self.get_texture_base_name()
         self.shader_texture_list = self.texture_filter(img_list)
-        self.node_wrangle_texture_dict = self.node_wrangler_texture_dict(self.shader_texture_list)
+        #self.node_wrangle_texture_dict = self.node_wrangler_texture_dict(self.shader_texture_list)
 
         print('MATERIAL: ', self.material)
         if self.shader_texture_list:
-            self.build_node_wrangler_principled_bsdf(sourceimages, str(self.texture_base_name), self.node_wrangle_texture_dict)
+            print(' -- Material Texture', self.texture_base_name)
+            #self.build_node_wrangler_principled_bsdf(sourceimages, str(self.texture_base_name), self.node_wrangle_texture_dict)
+            PrincipledBSDF(self.material, sourceimages, self.shader_texture_list)
         else:
-            print('Empty Material', self.texture_base_name)
+            print(' -- Empty Material', self.texture_base_name)
 
     def get_texture_base_name(self):
         """
@@ -99,18 +104,19 @@ class ShaderPBRConverter(object):
                 baseColor_texture_fullpath = tx.getTextureFromNode(l.from_node.image.filepath)
 
                 return tx.getTextureBaseName(baseColor_texture_fullpath.stem)
-        return baseColor_texture_fullpath
+        return None
 
     def texture_filter(self, img_list):
         shader_texture_list = []
-        for img in img_list:
-            if self.texture_base_name in tx.getTextureFromNode(img).stem:
-                shader_texture_list.append(img)
+        if self.texture_base_name:
+            for img in img_list:
+                if self.texture_base_name in tx.getTextureFromNode(img).stem:
+                    shader_texture_list.append(img)
 
-        if shader_texture_list:
-            return shader_texture_list
+            if shader_texture_list:
+                return shader_texture_list
 
-        return []
+        return None
 
     def node_wrangler_texture_dict(self, shader_texture_list):
         imgDictList = []
@@ -161,19 +167,126 @@ class ShaderPBRConverter(object):
 
         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
-def main(context):
-    ShadersConverter()
+class PrincipledBSDF(object):
+    base_color_name_list = str('diffuse diff albedo base col color basecolor').split(' ')
+    subsurface_color_name_list = str('sss subsurface').split(' ')
+    metallic_name_list = str('metallic metalness metal mtl').split(' ')
+    specular_name_list = str('specularity specular spec spc').split(' ')
+    roughness_name_list = str('roughness rough rgh').split(' ')
+    gloss_name_list = str('gloss glossy glossiness').split(' ')
+    normal_name_list = str('normal nor nrm nrml norm').split(' ')
+    bump_name_list = str('bump bmp').split(' ')
+    displacement_name_list = str('displacement displace disp dsp height heightmap').split(' ')
+    alpha_name_list = str('opacity alpha').split(' ')
+    emission_name_list = str('emission').split(' ')
 
-        #C.area.ui_type = old_type
+    diffuse = 0
+    subsurface = 1
 
-    def build_principled_bsdf(self, folder, shader_textures):
+    metallic = 4
+    specular = 5
+
+    roughness = 7
+
+    emission = 17
+    alpha = 18
+    normal = 19
+
+    def __init__(self, material, folder, shader_textures):
+        self.channel_list = [self.base_color_name_list,
+                             self.subsurface_color_name_list,
+                             self.metallic_name_list,
+                             self.specular_name_list,
+                             self.roughness_name_list,
+                             self.gloss_name_list,
+                             self.emission_name_list,
+                             self.alpha_name_list,
+                             self.bump_name_list,
+                             self.normal_name_list,
+                             self.displacement_name_list]
+
+        self.material = material
+        self.shader_node = self.material.node_tree.nodes['Principled BSDF']
+        self.uv_node = self.material.node_tree.nodes.new('ShaderNodeTexCoord')
+        self.mapping_node = self.material.node_tree.nodes.new('ShaderNodeMapping')
+
+        self.links = self.material.node_tree.links
+        self.links.new(self.uv_node.outputs[2], self.mapping_node.inputs[0])
+
+        # def specular
+        self.shader_node.inputs[self.specular].default_value = 0.5
+        self.shader_node.inputs[self.roughness].default_value = 0.05
+
+        self.folder = folder
+        self.connect_textures(shader_textures)
+
+    def connect_textures(self, textures):
+        for tex in textures:
+            channel = str(tex.split('.')[0]).split('_')[-1]
+            print('Texture: ', tex, ' -- Channel: ', channel)
+            if channel.lower() in self.base_color_name_list:
+                self.connect_color(tex)
+            if channel.lower() in self.metallic_name_list:
+                self.connect_noncolor(tex, self.metallic)
+            if channel.lower() in self.specular_name_list:
+                self.connect_noncolor(tex, self.specular)
+            if channel.lower() in self.roughness_name_list:
+                self.connect_noncolor(tex, self.roughness)
+            if channel.lower() in self.gloss_name_list:
+                self.connect_noncolor(tex, self.roughness, invert=True)
+            if channel.replace('-OGL', '').lower() in self.normal_name_list:
+                self.connect_normal(tex)
+
+    def connect_color(self, texture, socket=0):
+        img_datablock = bpy.data.images.load(self.folder + texture)
+
+        diffuse_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
+        diffuse_node.image = img_datablock
+        diffuse_node.image.colorspace_settings.name = 'sRGB'  # 'Non-Color'
+
+        self.links.new(self.mapping_node.outputs[0], diffuse_node.inputs[0])
+        self.links.new(diffuse_node.outputs[0], self.shader_node.inputs[socket])
+
+    def connect_noncolor(self, texture, socket, invert=False):
+        img_datablock = bpy.data.images.load(self.folder + texture)
+
+        if not invert:
+            diffuse_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
+            diffuse_node.image = img_datablock
+            diffuse_node.image.colorspace_settings.name = 'Non-Color'
+
+            self.links.new(self.mapping_node.outputs[0], diffuse_node.inputs[0])
+            self.links.new(diffuse_node.outputs[0], self.shader_node.inputs[socket])
+        else:
+            diffuse_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
+            invert_node = self.material.node_tree.nodes.new('ShaderNodeInvert')
+            diffuse_node.image = img_datablock
+            diffuse_node.image.colorspace_settings.name = 'Non-Color'  # 'Non-Color'
+
+            self.links.new(self.mapping_node.outputs[0], diffuse_node.inputs[0])
+            self.links.new(diffuse_node.outputs[0], invert_node.inputs[1])
+            self.links.new(invert_node.outputs[0], self.shader_node.inputs[7])
+
+    def connect_normal(self, texture, socket=19):
+        img_datablock = bpy.data.images.load(self.folder + texture)
+
+        diffuse_node = self.material.node_tree.nodes.new('ShaderNodeTexImage')
+        normalMap_node = self.material.node_tree.nodes.new('ShaderNodeNormalMap')
+        diffuse_node.image = img_datablock
+        diffuse_node.image.colorspace_settings.name = 'Non-Color'  # 'Non-Color'
+
+        self.links.new(self.mapping_node.outputs[0], diffuse_node.inputs[0])
+        self.links.new(diffuse_node.outputs[0], normalMap_node.inputs[1])
+        self.links.new(normalMap_node.outputs[0], self.shader_node.inputs[socket])
+
+    def connect_displacement(self, texture, socket):
         pass
 
 class ShadersConverterOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "materials.shaders_converter"
     bl_label = "Shaders PBR Converter"
-    bl_context = "node"
+    #bl_context = "node"
 
     @classmethod
     def poll(cls, context):
