@@ -6,8 +6,9 @@ D = bpy.data
 O = bpy.ops
 
 class ShadersConverter(object):
-    def __init__(self, removeDuplicateShaders=False):
+    def __init__(self, removeDuplicateShaders=True):
         self.folderManager = tx.ProjectFolder()
+        self.complete_material_list = []
 
         model_collection = D.collections['Model']
         objects = model_collection.objects
@@ -73,7 +74,9 @@ class ShadersConverter(object):
         for idx, slot in zip(range(0, len(material_slots)), material_slots):
             if slot.material.name != 'Dots Stroke':
                 C.object.active_material_index = idx
-                ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
+                if slot.material not in self.complete_material_list:
+                    ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
+                    self.complete_material_list.append(slot.material)
 
 class ShaderPBRConverter(object):
     def __init__(self, material, img_list, sourceimages):
@@ -177,7 +180,8 @@ class PrincipledBSDF(object):
     normal_name_list = str('normal nor nrm nrml norm').split(' ')
     bump_name_list = str('bump bmp').split(' ')
     displacement_name_list = str('displacement displace disp dsp height heightmap').split(' ')
-    alpha_name_list = str('opacity alpha').split(' ')
+    trasmission_name_list = str('opacity').split(' ')
+    alpha_name_list = str('alpha').split(' ')
     emission_name_list = str('emission').split(' ')
 
     diffuse = 0
@@ -188,6 +192,7 @@ class PrincipledBSDF(object):
 
     roughness = 7
 
+    trasmission = 15
     emission = 17
     alpha = 18
     normal = 19
@@ -236,6 +241,8 @@ class PrincipledBSDF(object):
                 self.connect_noncolor(tex, self.roughness, invert=True)
             if channel.replace('-OGL', '').lower() in self.normal_name_list:
                 self.connect_normal(tex)
+            if channel.lower() in self.trasmission_name_list:
+                self.connect_noncolor(tex, self.trasmission)
 
     def connect_color(self, texture, socket=0):
         img_datablock = bpy.data.images.load(self.folder + texture)
