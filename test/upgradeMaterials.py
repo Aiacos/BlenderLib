@@ -23,10 +23,15 @@ def waxUpgrade(material):
     if str('Wax').lower() in str(material.name).lower():
         print('------- WAX UPGRADE -------')
         shader_node = material.node_tree.nodes['Principled BSDF']
-        shader_node.inputs[1].default_value = 1
+        shader_node.inputs[1].default_value = 0.25
         shader_node.inputs[2].default_value[0] = 0.2
         shader_node.inputs[2].default_value[1] = 0.2
         shader_node.inputs[2].default_value[2] = 0.2
+
+        #sheen
+        shader_node.inputs[10].default_value = 1
+        #clearcoat
+        shader_node.inputs[12].default_value = 0.5
 
 def glassUpgrade(material):# input 15
     if str('Glass_Bottle').lower() in str(material.name).lower() or str('content_Bottle').lower() in str(material.name).lower():
@@ -64,6 +69,16 @@ def candleUpgrade(material):
 
         links.new(blackbody_node.outputs[0], shader_node.inputs[17])
 
+def fixFabric(material):
+    if str('M-Fabric').lower() in str(material.name).lower():
+        print('------- FABRIC FIX -------')
+        shader_node = material.node_tree.nodes['Principled BSDF']
+        links = material.node_tree.links
+
+        l = shader_node.inputs['Transmission'].links[0]
+        links.remove(l)
+
+
 def matIterator():
     model_collection = D.collections['Model']
     objects = model_collection.objects
@@ -76,6 +91,7 @@ def matIterator():
             waxUpgrade(slot.material)
             glassUpgrade(slot.material)
             candleUpgrade(slot.material)
+            fixFabric(slot.material)
 
 if __name__ == '__main__':
     matIterator()
