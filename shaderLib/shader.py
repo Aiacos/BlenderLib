@@ -73,10 +73,11 @@ class ShadersConverter(object):
         material_slots = C.object.material_slots
         for idx, slot in zip(range(0, len(material_slots)), material_slots):
             if slot.material.name != 'Dots Stroke':
-                C.object.active_material_index = idx
-                if slot.material not in self.complete_material_list:
-                    ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
-                    self.complete_material_list.append(slot.material)
+                if 'fire' not in str(slot.material.name).lower():
+                    C.object.active_material_index = idx
+                    if slot.material not in self.complete_material_list:
+                        ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
+                        self.complete_material_list.append(slot.material)
 
 class ShaderPBRConverter(object):
     def __init__(self, material, img_list, sourceimages):

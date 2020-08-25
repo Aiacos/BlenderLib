@@ -10,7 +10,7 @@ bl_info = {
     "category": "BlenderLib"#"Development"#
 }
 
-mainModulesNames = ['shaderLib', 'menuLib']
+mainModulesNames = ['pipelineLib', 'menuLib', 'shaderLib']
 
 import sys
 import importlib
