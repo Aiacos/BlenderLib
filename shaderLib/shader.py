@@ -5,6 +5,7 @@ C = bpy.context
 D = bpy.data
 O = bpy.ops
 
+
 class ShadersConverter(object):
     def __init__(self, removeDuplicateShaders=True):
         self.folderManager = tx.ProjectFolder()
@@ -20,7 +21,6 @@ class ShadersConverter(object):
             bpy.ops.outliner.orphans_purge()
             bpy.ops.outliner.orphans_purge()
             print('-------')
-
 
         for obj in objects:
             self.iterateMaterialSlot(obj)
@@ -79,6 +79,83 @@ class ShadersConverter(object):
                         ShaderPBRConverter(slot.material, self.folderManager.get_images(), str(self.folderManager.texture_folder)+'/')
                         self.complete_material_list.append(slot.material)
 
+
+class RemoveDuplicateShader(object):
+    def __init__(self, collection='Model'):
+        self.material_index = {}
+
+        model_collection = D.collections[collection]
+        objects = model_collection.objects
+
+        self.build_material_index(objects)
+        self.remove_duplicates(objects)
+
+        bpy.ops.outliner.orphans_purge()
+        bpy.ops.outliner.orphans_purge()
+
+    def build_material_index(self, objects, sort=True):
+        for obj in objects:
+            self.select(obj)
+            material_slots = bpy.context.object.material_slots
+            for idx, slot in zip(range(0, len(material_slots)), material_slots):
+                material = slot.material
+                material_name = material.name
+                links = material.node_tree.links
+                texture_name = self.get_texture_name(links)
+
+                if not texture_name in self.material_index.keys():
+                    self.material_index[texture_name] = [material_name]
+                else:
+                    self.material_index[texture_name].append(material_name)
+
+        if sort:
+            for key, value in self.material_index.items():
+                value.sort()
+
+    def remove_duplicates(self, objects):
+        for obj in objects:
+            self.select(obj)
+            material_slots = bpy.context.object.material_slots
+            for idx, slot in zip(range(0, len(material_slots)), material_slots):
+                material = slot.material
+                material_name = material.name
+                links = material.node_tree.links
+                texture_name = self.get_texture_name(links)
+
+                if texture_name in self.material_index.keys():
+                    original_name = self.material_index[texture_name][0]
+                    mat = bpy.data.materials.get(original_name)
+                    slot.material = mat
+
+
+    def get_texture_name(self, links):
+        """
+        Get texture base name: concrete_BaseColor.png > concrete
+        :return: (str) texture base name
+        """
+        baseColor_texture_fullpath = ''
+        for l in links:
+            if isinstance(l.from_node, bpy.types.ShaderNodeTexImage):
+                baseColor_texture_fullpath = tx.getTextureFromNode(l.from_node.image.filepath)
+
+                return tx.getTextureBaseName(baseColor_texture_fullpath.stem)
+        return None
+
+    def select(self, obj, selectionSet=False):
+        if isinstance(obj, str):
+            obj = D.objects[obj]
+        # to select the object in the 3D viewport,
+        # this way you can also select multiple objects
+        if selectionSet:
+            obj.select_set(True)
+        else:
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+
+        # to set the active object
+        bpy.context.view_layer.objects.active = obj
+
+
 class ShaderPBRConverter(object):
     def __init__(self, material, img_list, sourceimages):
         self.material = material
@@ -130,7 +207,6 @@ class ShaderPBRConverter(object):
 
         return imgDictList
 
-
     def build_node_wrangler_principled_bsdf(self, folder, baseColor_texture, shader_textures):
         old_type = C.area.ui_type
         C.area.ui_type = 'ShaderNodeTree'
@@ -170,6 +246,7 @@ class ShaderPBRConverter(object):
         C.area.ui_type = old_type
 
         bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
+
 
 class PrincipledBSDF(object):
     base_color_name_list = str('diffuse diff albedo base col color basecolor').split(' ')
@@ -290,6 +367,7 @@ class PrincipledBSDF(object):
     def connect_displacement(self, texture, socket):
         pass
 
+
 class ShadersConverterOperator(bpy.types.Operator):
     """Tooltip"""
     bl_idname = "materials.shaders_converter"
@@ -304,13 +382,29 @@ class ShadersConverterOperator(bpy.types.Operator):
         ShadersConverter()
         return {'FINISHED'}
 
+class RemoveDuplicateShaderOperator(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "materials.shaders_duplicate_remover"
+    bl_label = "Remove Duplicate Shader"
+    #bl_context = "node"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object is not None
+
+    def execute(self, context):
+        RemoveDuplicateShader()
+        return {'FINISHED'}
+
 
 def register():
     bpy.utils.register_class(ShadersConverterOperator)
+    bpy.utils.register_class(RemoveDuplicateShaderOperator)
 
 
 def unregister():
     bpy.utils.unregister_class(ShadersConverterOperator)
+    bpy.utils.unregister_class(RemoveDuplicateShaderOperator)
 
 
 if __name__ == "__main__":

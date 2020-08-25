@@ -14,6 +14,7 @@ class SHADER_MT_libMenu(bpy.types.Menu):
 
     def draw(self, context):
         self.layout.operator("materials.shaders_converter")
+        self.layout.operator("materials.shaders_duplicate_remover")
 
 class VIEW3D_MT_menu(bpy.types.Menu):
     bl_label = "BlenderLib"
