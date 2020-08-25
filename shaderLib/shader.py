@@ -164,12 +164,10 @@ class ShaderPBRConverter(object):
 
         self.texture_base_name = self.get_texture_base_name()
         self.shader_texture_list = self.texture_filter(img_list)
-        #self.node_wrangle_texture_dict = self.node_wrangler_texture_dict(self.shader_texture_list)
 
         print('MATERIAL: ', self.material)
         if self.shader_texture_list:
             print(' -- Material Texture', self.texture_base_name)
-            #self.build_node_wrangler_principled_bsdf(sourceimages, str(self.texture_base_name), self.node_wrangle_texture_dict)
             PrincipledBSDF(self.material, sourceimages, self.shader_texture_list)
         else:
             print(' -- Empty Material', self.texture_base_name)
@@ -198,54 +196,6 @@ class ShaderPBRConverter(object):
                 return shader_texture_list
 
         return None
-
-    def node_wrangler_texture_dict(self, shader_texture_list):
-        imgDictList = []
-        for i in shader_texture_list:
-            imgDict = {'name': i, 'name': i}
-            imgDictList.append(imgDict)
-
-        return imgDictList
-
-    def build_node_wrangler_principled_bsdf(self, folder, baseColor_texture, shader_textures):
-        old_type = C.area.ui_type
-        C.area.ui_type = 'ShaderNodeTree'
-
-        #bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
-
-        #################
-        #O.node.select_all(action='TOGGLE')
-        nodes = self.material.node_tree.nodes
-        self.shader_node.select = True
-        nodes.active = self.shader_node
-
-        #######################
-
-        area = C.area
-        area.type = 'NODE_EDITOR'
-        for sp in area.spaces:
-            print(sp, sp.type, "has tree_treetype", hasattr(sp, "tree_type"))
-
-            if hasattr(sp, "tree_type"):
-                space = area.spaces.active
-                space.tree_type = 'ShaderNodeTree'
-
-                for a in C.screen.areas:
-                    if a.type == 'NODE_EDITOR':
-                        x = a.x
-                        y = a.y
-                        width = a.width
-                        height = a.height
-
-                C.window.cursor_warp(x + width / 2, y + height / 2)
-
-        ########################
-                print('Context: ', C.space_data.node_tree)
-                O.node.nw_add_textures_for_principled(filepath=baseColor_texture, directory=folder+'/', files=shader_textures, relative_path=True)
-
-        C.area.ui_type = old_type
-
-        bpy.ops.wm.redraw_timer(type='DRAW_WIN_SWAP', iterations=1)
 
 
 class PrincipledBSDF(object):
