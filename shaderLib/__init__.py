@@ -1,2 +1,2 @@
-import shaderLib.texture
-import shaderLib.shader
+from . import texture
+from . import shader

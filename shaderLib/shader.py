@@ -1,4 +1,4 @@
-import shaderLib.texture as tx
+from . import texture as tx
 import bpy
 
 C = bpy.context

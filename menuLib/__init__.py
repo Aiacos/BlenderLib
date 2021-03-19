@@ -1,1 +1,1 @@
-import menuLib.utils
+from . import utils
