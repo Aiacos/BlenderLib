@@ -1,10 +1,11 @@
 bl_info = {
     "name": "BlenderLib",
     "author": "Lorenzo Argentieri",
-    "version": (1, 0),
-    "blender": (2, 83, 1),
-    "location": "View3D > BlenderLib",
-    "description": "Tools Operators",
+    "version": (1, 0, 0),
+    "blender": (2, 92, 0),
+    "support": "COMMUNITY",
+    "location": "TopBar > BlenderLib",
+    "description": "Tools",
     "warning": "",
     "doc_url": "",
     "category": "BlenderLib"#"Development"#
