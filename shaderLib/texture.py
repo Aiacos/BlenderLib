@@ -23,7 +23,7 @@ class ProjectFolder(object):
         """
         return self.imgList
 
-    def buildImgList(self):
+    def buildImgList(self, search_extension='png'):
         """
         Return a list with all images in a folder: image.png
         :param path: (str) path
@@ -31,7 +31,7 @@ class ProjectFolder(object):
         """
         imgList = []
         os.chdir(self.get_texture_folder())
-        for file in glob.glob('*.png'):
+        for file in glob.glob('*.' + search_extension):
             imgList.append(file)
 
         return imgList
